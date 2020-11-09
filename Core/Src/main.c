@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +52,8 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-uint8_t receivedData[4] = {100, 10, 100, 10};
+int8_t receivedData[4] = {-100, 15, -100, 12};
+int8_t  DutyCycle = 0;
 uint32_t len = 4;
 uint8_t Receiveflag;
 /* USER CODE END PV */
@@ -64,9 +65,14 @@ static void MX_TIM4_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-void Motors_Control(uint8_t DutyCycleA, uint8_t DutyCycleB) {
-	htim4.Instance->CCR1 = DutyCycleA;  // Motor A speed control
-	htim4.Instance->CCR2 = DutyCycleB;  // Motor B speed control
+//void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
+	//Receiveflag = 1;
+    //memcpy(receivedData, buf, 4);
+//}
+
+void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
+	htim4.Instance->CCR1 = abs(DutyCycleA);  // Motor A speed control
+	htim4.Instance->CCR2 = abs(DutyCycleB);  // Motor B speed control
 
 	// moving forward
 	if (DutyCycleA > 0 && DutyCycleB > 0) {
@@ -150,7 +156,20 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  Motors_Control(receivedData[0], receivedData[2]);
+	  //if(Receiveflag == 1)
+	  		//{
+	  			//Receiveflag = 0;
+	  			//Motors_Control(receivedData[0], receivedData[2]);
+	  		//}
+	  //Motors_Control(receivedData[0], receivedData[2]);
+	  htim4.Instance->CCR1 = abs(DutyCycle);
+	  DutyCycle = DutyCycle + 10;
+	  if(DutyCycle == 100) DutyCycle=0;
+	  HAL_Delay(1000);
+	  in1_in3(GPIO_PIN_SET); // in1 and in3
+	  in2_in4(GPIO_PIN_RESET);   //in2 and in4
+
+
   }
   /* USER CODE END 3 */
 }
