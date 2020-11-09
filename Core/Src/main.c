@@ -165,13 +165,13 @@ int main(void)
 	  			//Receiveflag = 0;
 	  			//Motors_Control(receivedData[0], receivedData[2]);
 	  		//}
-	  //Motors_Control(receivedData[0], receivedData[2]);
-	  htim4.Instance->CCR1 = abs(DutyCycle);
-	  DutyCycle = DutyCycle + 10;
-	  if(DutyCycle == 100) DutyCycle=0;
-	  HAL_Delay(1000);
-	  in1_in3(GPIO_PIN_SET); // in1 and in3
-	  in2_in4(GPIO_PIN_RESET);   //in2 and in4
+	  Motors_Control(receivedData[0], receivedData[2]);
+	  //htim4.Instance->CCR1 = abs(DutyCycle);
+	  //DutyCycle = DutyCycle + 10;
+	  //if(DutyCycle == 100) DutyCycle=0;
+	  //HAL_Delay(1000);
+	  //in1_in3(GPIO_PIN_SET); // in1 and in3
+	  //in2_in4(GPIO_PIN_RESET);   //in2 and in4
 
 
   }
@@ -425,7 +425,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, OUT1_Pin|OUT2_Pin|OUT3_Pin|OUT4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED1_Pin|LED2_Pin|LED3C6_Pin|LED4C7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED1_Pin|LED2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED3_Pin|LED4_Pin|CS_M_Pin|CS_A_G_Pin
@@ -438,8 +438,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LED1_Pin LED2_Pin LED3C6_Pin LED4C7_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin|LED3C6_Pin|LED4C7_Pin;
+  /*Configure GPIO pins : LED1_Pin LED2_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

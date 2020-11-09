@@ -80,10 +80,6 @@ void Error_Handler(void);
 #define CS_M_GPIO_Port GPIOB
 #define CS_A_G_Pin GPIO_PIN_12
 #define CS_A_G_GPIO_Port GPIOB
-#define LED3C6_Pin GPIO_PIN_6
-#define LED3C6_GPIO_Port GPIOC
-#define LED4C7_Pin GPIO_PIN_7
-#define LED4C7_GPIO_Port GPIOC
 #define DEN_A_G_Pin GPIO_PIN_9
 #define DEN_A_G_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
