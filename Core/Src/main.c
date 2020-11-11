@@ -55,7 +55,6 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 int8_t receivedData[4] = {-100, 15, -100, 12};
-int8_t  DutyCycle = 0;
 uint32_t len = 4;
 uint8_t Receiveflag;
 /* USER CODE END PV */
@@ -68,10 +67,11 @@ static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-//void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
-	//Receiveflag = 1;
-    //memcpy(receivedData, buf, 4);
-//}
+void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
+	Receiveflag = 1;
+    memcpy(receivedData, buf, 4);
+	//CDC_Transmit_FS(buf, len);
+}
 
 void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
 	htim4.Instance->CCR1 = abs(DutyCycleA);  // Motor A speed control
@@ -160,20 +160,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  //if(Receiveflag == 1)
-	  		//{
-	  			//Receiveflag = 0;
-	  			//Motors_Control(receivedData[0], receivedData[2]);
-	  		//}
-	  Motors_Control(receivedData[0], receivedData[2]);
-	  //htim4.Instance->CCR1 = abs(DutyCycle);
-	  //DutyCycle = DutyCycle + 10;
-	  //if(DutyCycle == 100) DutyCycle=0;
-	  //HAL_Delay(1000);
-	  //in1_in3(GPIO_PIN_SET); // in1 and in3
-	  //in2_in4(GPIO_PIN_RESET);   //in2 and in4
-
-
+	  if(Receiveflag == 1)
+	  		{
+	  			Receiveflag = 0;
+	  			Motors_Control(receivedData[0], receivedData[2]);
+	  		}
+	  //Motors_Control(receivedData[0], receivedData[2]);
   }
   /* USER CODE END 3 */
 }
@@ -329,7 +321,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 16;
+  htim4.Init.Prescaler = 48;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 100;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
