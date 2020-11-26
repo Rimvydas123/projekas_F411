@@ -33,10 +33,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define in1_in3(a) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_6, a)
-#define in2_in4(b) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, b)
-#define in1_in4(c) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_7, c)
-#define in2_in3(d) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, d)
+#define out1_out3(a) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_6, a)
+#define out2_out4(b) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, b)
+#define out1_out4(c) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_7, c)
+#define out2_out3(d) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, d)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,7 +54,7 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-int8_t receivedData[4] = {-100, 15, -100, 12};
+int8_t receivedData[4] = {100, 15, 0, 12};
 uint32_t len = 4;
 uint8_t Receiveflag;
 /* USER CODE END PV */
@@ -70,7 +70,7 @@ static void MX_ADC1_Init(void);
 void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
 	Receiveflag = 1;
     memcpy(receivedData, buf, 4);
-	//CDC_Transmit_FS(buf, len);
+    CDC_Transmit_FS(buf, len);
 }
 
 void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
@@ -79,33 +79,33 @@ void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
 
 	// moving forward
 	if (DutyCycleA > 0 && DutyCycleB > 0) {
-		in1_in3(GPIO_PIN_RESET); // in1 and in3
-		in2_in4(GPIO_PIN_SET);   //in2 and in4
+		out1_out3(GPIO_PIN_RESET);
+		out2_out4(GPIO_PIN_SET);
 
 	}
 
 	// moving backward
 	if (DutyCycleA < 0 && DutyCycleB < 0) {
-		in1_in3(GPIO_PIN_SET); // in1 and in3
-		in2_in4(GPIO_PIN_RESET);   //in2 and in4
+		out1_out3(GPIO_PIN_SET);
+		out2_out4(GPIO_PIN_RESET);
 	}
 
 	// stop
 	if (DutyCycleA == 0 && DutyCycleB == 0) {
-		in1_in3(GPIO_PIN_RESET); // in1 and in3
-		in2_in4(GPIO_PIN_RESET);   //in2 and in4
+		out1_out3(GPIO_PIN_RESET);
+		out2_out4(GPIO_PIN_RESET);
 	}
 
 	// moving to left
 	if(DutyCycleA < 0 && DutyCycleB > 0) {
-		in1_in4(GPIO_PIN_SET);   // in1 and in4
-		in2_in3(GPIO_PIN_RESET); // in2 and in3
+		out1_out4(GPIO_PIN_SET);
+		out2_out3(GPIO_PIN_RESET);
 	}
 
 	// moving to right
 	if (DutyCycleA > 0 && DutyCycleB < 0) {
-		in1_in4(GPIO_PIN_RESET);   // in1 and in4
-		in2_in3(GPIO_PIN_SET); // in2 and in3
+		out1_out4(GPIO_PIN_RESET);
+		out2_out3(GPIO_PIN_SET);
 	}
 }
 /* USER CODE END PFP */
@@ -160,12 +160,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if(Receiveflag == 1)
-	  		{
-	  			Receiveflag = 0;
-	  			Motors_Control(receivedData[0], receivedData[2]);
-	  		}
-	  //Motors_Control(receivedData[0], receivedData[2]);
+	  //if(Receiveflag == 1)
+	  		//{
+	  			//Receiveflag = 0;
+	  			//Motors_Control(receivedData[0], receivedData[2]);
+	  		//}
+	  Motors_Control(receivedData[0], receivedData[2]);
   }
   /* USER CODE END 3 */
 }
