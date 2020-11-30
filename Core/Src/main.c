@@ -67,6 +67,16 @@ static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
+//void reading_sensor(void)
+//{
+//	HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDRESS, LSM6DSL_OUTX_L_G, 1, data_acc_gyr, 12, 10);
+//	memcpy(data_request, request, 1);
+//	if(data_request[0] == ready[0])
+//	  {
+//		HAL_UART_Transmit_DMA(&huart6, data_acc_gyr, 12);
+//	  }
+//}
+
 void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
 	Receiveflag = 1;
     memcpy(receivedData, buf, 4);
