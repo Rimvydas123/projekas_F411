@@ -37,6 +37,10 @@
 #define out2_out4(b) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, b)
 #define out1_out4(c) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_7, c)
 #define out2_out3(d) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, d)
+
+#define battery_threshold 3276 // atitinka 10V is baterijos, o kontroleryje 2.4V
+
+#define battery_aliarm(z) HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, z)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,9 +50,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
@@ -57,15 +63,19 @@ UART_HandleTypeDef huart1;
 int8_t receivedData[4] = {100, 15, 0, 12};
 uint32_t len = 4;
 uint8_t Receiveflag;
+
+uint16_t adcvalue[1];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 //void reading_sensor(void)
 //{
@@ -73,9 +83,24 @@ static void MX_ADC1_Init(void);
 //	memcpy(data_request, request, 1);
 //	if(data_request[0] == ready[0])
 //	  {
-//		HAL_UART_Transmit_DMA(&huart6, data_acc_gyr, 12);
+//		HAL_UART_Transmit_DMA(&huart6, data_acc_gyr, 12);i main
 //	  }
 //}
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+  /* This is called after the conversion is completed */
+}
+
+void checking_baterry(void)
+{
+	if(adcvalue[0] <= battery_threshold)
+	{
+	  battery_aliarm(GPIO_PIN_SET);
+	}
+	else
+	{
+	  battery_aliarm(GPIO_PIN_RESET);
+	}
+}
 
 void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
 	Receiveflag = 1;
@@ -153,14 +178,20 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM4_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   MX_ADC1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adcvalue, 1);
+  HAL_TIM_Base_Start_IT(&htim2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -175,7 +206,8 @@ int main(void)
 	  			//Receiveflag = 0;
 	  			//Motors_Control(receivedData[0], receivedData[2]);
 	  		//}
-	  Motors_Control(receivedData[0], receivedData[2]);
+	  //Motors_Control(receivedData[0], receivedData[2]);
+	  checking_baterry();
   }
   /* USER CODE END 3 */
 }
@@ -245,14 +277,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -308,6 +340,54 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 4800-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 10000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -404,6 +484,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
 
