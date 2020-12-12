@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,10 +39,11 @@
 #define out2_out4(b) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, b)
 #define out1_out4(c) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_7, c)
 #define out2_out3(d) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, d)
+#define CS_AG_value(m) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, m)
+#define battery_aliarm(z) HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, z)
 
 #define battery_threshold 3276 // atitinka 10V is baterijos, o kontroleryje 2.4V
 
-#define battery_aliarm(z) HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, z)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,11 +63,10 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-int8_t receivedData[4] = {100, 15, 0, 12};
-uint32_t len = 4;
-uint8_t Receiveflag;
-
-uint16_t adcvalue[1];
+int8_t receivedData[3]; // kintamasis duomenu gavimui is kompiuterio
+uint8_t Receiveflag, DataReadingFlag; // veleveles
+uint8_t spiTXbuf[2], data_acc[6], data_acc_gyr[12]; // jutiklio nuskaitymui reikalingi kintamieji
+uint16_t adcvalue[1]; // is ADC gauta verte
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,19 +79,57 @@ static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-//void reading_sensor(void)
-//{
-//	HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDRESS, LSM6DSL_OUTX_L_G, 1, data_acc_gyr, 12, 10);
-//	memcpy(data_request, request, 1);
-//	if(data_request[0] == ready[0])
-//	  {
-//		HAL_UART_Transmit_DMA(&huart6, data_acc_gyr, 12);i main
-//	  }
-//}
+/**
+ ******************************************************************************
+* @note funkcija nuskaito is jutiklio LSM9DS1 giroskopo ir akselerometro duomenis
+*/
+
+void reading_sensor(void)
+{
+	// nuskaitomi giroskopo duomenys 6 baitai
+	    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
+	    spiTXbuf[0] = 0x18|0x80;
+	    HAL_SPI_Transmit(&hspi1,spiTXbuf,1,50); // i pirma skaitoma registra nusiunciama komanda 0x80 ijungiamas skaitymo rezimas
+	    HAL_SPI_Receive(&hspi1,data_acc_gyr, 6, 50); // nuskaitomi duomenys
+	    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
+
+	   // nuskaitomi akselerometro duomenys 6 baitai
+	    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
+	    spiTXbuf[0] = 0x28|0x80;
+	    HAL_SPI_Transmit(&hspi1,spiTXbuf,1,50); // i pirma skaitoma registra nusiunciama komanda 0x80 ijungiamas skaitymo rezimas
+	    HAL_SPI_Receive(&hspi1,data_acc, 6, 50); // nuskaitomi duomenys
+	    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
+
+	    for(int i=0, j=6; i<6; i++, j++) // dumenu sudejimas i viena masyva
+	      data_acc_gyr[j] = data_acc[i];
+}
+/**
+ ******************************************************************************
+* @note funkcija reikalinga patikrinimui ar jau yra naujas duomenu paketas kuri reikia nuskaityti
+*/
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(GPIO_Pin);
+  /* NOTE: This function Should not be modified, when the callback is needed,
+           the HAL_GPIO_EXTI_Callback could be implemented in the user file
+   */
+  DataReadingFlag = 1;
+}
+/**
+ ******************************************************************************
+* @note Baterijos itampos lygio matavimui reikalinga funkcija
+*/
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
   /* This is called after the conversion is completed */
 }
 
+/**
+ ******************************************************************************
+* @note funkcija tikrina ar ADC verte nenukrito zemiau negu nustatyta riba
+* jeigu nukrito zemiau ribos ijungiamas sviesos diodas.
+*/
 void checking_baterry(void)
 {
 	if(adcvalue[0] <= battery_threshold)
@@ -102,12 +142,21 @@ void checking_baterry(void)
 	}
 }
 
+/**
+ ******************************************************************************
+* @note funkcija duomenu nuskaitymui is kompiuterio
+
+*/
 void CDC_ReceiveCallback(uint8_t *buf, uint32_t len){
 	Receiveflag = 1;
-    memcpy(receivedData, buf, 4);
-    CDC_Transmit_FS(buf, len);
+    memcpy(receivedData, buf, strlen((char* )buf));
+    //CDC_Transmit_FS(buf, len);
 }
+/**
+ ******************************************************************************
+* @note funkcija kuri kontroluoja motoru sukimosi krypti
 
+*/
 void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
 	htim4.Instance->CCR1 = abs(DutyCycleA);  // Motor A speed control
 	htim4.Instance->CCR2 = abs(DutyCycleB);  // Motor B speed control
@@ -142,6 +191,18 @@ void Motors_Control(int8_t DutyCycleA, int8_t DutyCycleB) {
 		out1_out4(GPIO_PIN_RESET);
 		out2_out3(GPIO_PIN_SET);
 	}
+}
+/**
+ ******************************************************************************
+* @note tikrinamas gautas paketas is kompiuterio pagal gauta paketa
+* arba paleidziamo motorai arba siunciami is jutiklio nuskaityti duomenys i kompiuteri
+*/
+void checking_package(uint8_t data_request)
+{
+	if(data_request == 'M')
+		Motors_Control(receivedData[1], receivedData[2]);
+	else
+		CDC_Transmit_FS(data_acc_gyr, strlen((char *)data_acc_gyr));
 }
 /* USER CODE END PFP */
 
@@ -186,11 +247,36 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); // paleidziami laikmaciai PWM signalo generavimui
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adcvalue, 1);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adcvalue, 1); // paleidziamas ADC baterijos itampos lygio matavimui
   HAL_TIM_Base_Start_IT(&htim2);
+
+  //*****************************************************//
+  //komandu rasymas i jutikllio registrus
+  // CTRL_REG1_G paleidziamas giroskopas
+    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
+    spiTXbuf[0] = 0x10;
+    spiTXbuf[1] = 0x20;
+    HAL_SPI_Transmit(&hspi1,spiTXbuf,2,50); // siunciama registras + duomenys rasomi i registra
+    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
+
+   // CTRL_REG6_XL  paleidziamas akselerometras
+    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
+    spiTXbuf[0] = 0x20;
+    spiTXbuf[1] = 0x20;
+    HAL_SPI_Transmit(&hspi1,spiTXbuf,2,50); // siunciama registras + duomenys rasomi i registra
+    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
+
+    // INT1_CTRL paleidziama giroskopo ir akselerometro pertrauktys
+    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
+    spiTXbuf[0] = 0x0C;
+    spiTXbuf[1] = 0xC3;
+    HAL_SPI_Transmit(&hspi1,spiTXbuf,2,50); // siunciama registras + duomenys rasomi i registra
+    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
+
+    //*****************************************************//
 
   /* USER CODE END 2 */
 
@@ -201,12 +287,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  //if(Receiveflag == 1)
-	  		//{
-	  			//Receiveflag = 0;
-	  			//Motors_Control(receivedData[0], receivedData[2]);
-	  		//}
-	  //Motors_Control(receivedData[0], receivedData[2]);
+	  if(DataReadingFlag == 1)
+	  	  {
+	  		  DataReadingFlag = 0;
+	  		  reading_sensor();
+	  	  }
+
+	  if(Receiveflag == 1)
+	  		{
+	  			Receiveflag = 0;
+	  	  	  	checking_package(receivedData[0]);
+	  		}
 	  checking_baterry();
   }
   /* USER CODE END 3 */
@@ -526,8 +617,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, LED1_Pin|LED2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED3_Pin|LED4_Pin|CS_M_Pin|CS_A_G_Pin
-                          |DEN_A_G_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED3_Pin|LED4_Pin|CS_M_Pin|DEN_A_G_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CS_A_G_GPIO_Port, CS_A_G_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : OUT1_Pin OUT2_Pin OUT3_Pin OUT4_Pin */
   GPIO_InitStruct.Pin = OUT1_Pin|OUT2_Pin|OUT3_Pin|OUT4_Pin;
