@@ -65,7 +65,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 int8_t receivedData[3]; // kintamasis duomenu gavimui is kompiuterio
 uint8_t Receiveflag, DataReadingFlag; // veleveles
-uint8_t spiTXbuf[2], data_acc[6], data_acc_gyr[12]; // jutiklio nuskaitymui reikalingi kintamieji
+uint8_t spiTXbuf[2], data_acc_gyr[12]; // jutiklio nuskaitymui reikalingi kintamieji
 uint16_t adcvalue[1]; // is ADC gauta verte
 /* USER CODE END PV */
 
@@ -86,22 +86,12 @@ static void MX_TIM2_Init(void);
 
 void reading_sensor(void)
 {
-	// nuskaitomi giroskopo duomenys 6 baitai
+	// nuskaitomi giroskopo ir akselerometro duomenys 12 baitu
 	    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
 	    spiTXbuf[0] = 0x18|0x80;
 	    HAL_SPI_Transmit(&hspi1,spiTXbuf,1,50); // i pirma skaitoma registra nusiunciama komanda 0x80 ijungiamas skaitymo rezimas
-	    HAL_SPI_Receive(&hspi1,data_acc_gyr, 6, 50); // nuskaitomi duomenys
+	    HAL_SPI_Receive(&hspi1,data_acc_gyr, 12, 50); // nuskaitomi duomenys
 	    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
-
-	   // nuskaitomi akselerometro duomenys 6 baitai
-	    CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
-	    spiTXbuf[0] = 0x28|0x80;
-	    HAL_SPI_Transmit(&hspi1,spiTXbuf,1,50); // i pirma skaitoma registra nusiunciama komanda 0x80 ijungiamas skaitymo rezimas
-	    HAL_SPI_Receive(&hspi1,data_acc, 6, 50); // nuskaitomi duomenys
-	    CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
-
-	    for(int i=0, j=6; i<6; i++, j++) // dumenu sudejimas i viena masyva
-	      data_acc_gyr[j] = data_acc[i];
 }
 /**
  ******************************************************************************
@@ -258,14 +248,14 @@ int main(void)
   // CTRL_REG1_G paleidziamas giroskopas
     CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
     spiTXbuf[0] = 0x10;
-    spiTXbuf[1] = 0x20;
+    spiTXbuf[1] = 0x80;
     HAL_SPI_Transmit(&hspi1,spiTXbuf,2,50); // siunciama registras + duomenys rasomi i registra
     CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
 
    // CTRL_REG6_XL  paleidziamas akselerometras
     CS_AG_value(GPIO_PIN_RESET); // pinas CS_A/G padaromas zemo lygio
     spiTXbuf[0] = 0x20;
-    spiTXbuf[1] = 0x20;
+    spiTXbuf[1] = 0x80;
     HAL_SPI_Transmit(&hspi1,spiTXbuf,2,50); // siunciama registras + duomenys rasomi i registra
     CS_AG_value(GPIO_PIN_SET); // pinas CS_A/G padaromas auksto lygio
 
